@@ -53,3 +53,10 @@ vim.api.nvim_create_user_command("QuicktestRunAll", function(opts)
   local quicktest = require("quicktest")
   quicktest.run_all(args[1], args[2], { additional_args = slice(args, 3) })
 end, { nargs = "*" })
+
+vim.api.nvim_create_user_command("QuicktestShowTests", function(opts)
+  local args = opts.fargs
+
+  local quicktest = require("quicktest")
+  quicktest.show_tests(args[1])
+end, { nargs = "?" })

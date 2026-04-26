@@ -47,7 +47,7 @@ describe("pytest adapter", function()
     pytest.run(params, function()
     end)
 
-    assert.are.same({ path .. "::test_fail" }, captured_job_opts.args)
+    assert.are.same({ path .. "::test_fail", "-vv" }, captured_job_opts.args)
   end)
 
   it("builds an exact selector for class test methods", function()
@@ -61,6 +61,46 @@ describe("pytest adapter", function()
     pytest.run(params, function()
     end)
 
-    assert.are.same({ path .. "::TestMath::test_add" }, captured_job_opts.args)
+    assert.are.same({ path .. "::TestMath::test_add", "-vv" }, captured_job_opts.args)
+  end)
+
+  it("lists all test cases in the current file", function()
+    local path = fixture_dir .. "/test_class_methods.py"
+    local bufnr = open_fixture(path)
+    local tests = pytest.list_tests(bufnr)
+
+    assert.are.same({
+      {
+        id = path .. "::TestMath::test_add",
+        row = 4,
+        end_row = 5,
+        name = "test_add",
+        ns_name = "TestMath",
+        display_name = "TestMath::test_add",
+        selector = path .. "::TestMath::test_add",
+      },
+      {
+        id = path .. "::TestString::test_add",
+        row = 9,
+        end_row = 9,
+        name = "test_add",
+        ns_name = "TestString",
+        display_name = "TestString::test_add",
+        selector = path .. "::TestString::test_add",
+      },
+    }, tests)
+  end)
+
+  it("builds file run params with all discovered tests", function()
+    local path = fixture_dir .. "/test_simple.py"
+    local bufnr = open_fixture(path)
+    local params = assert(pytest.build_file_run_params(bufnr, { 1, 0 }, { additional_args = nil }))
+
+    assert.are.same({
+      path .. "::test_fail",
+      path .. "::test_ok",
+    }, vim.tbl_map(function(test)
+      return test.selector
+    end, params.tests))
   end)
 end)

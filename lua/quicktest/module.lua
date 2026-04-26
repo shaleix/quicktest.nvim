@@ -4,6 +4,7 @@ local notify = require("quicktest.notify")
 local a = require("plenary.async")
 local u = require("plenary.async.util")
 local ui = require("quicktest.ui")
+local test_panel = require("quicktest.test_panel")
 local colorized_printer = require("quicktest.colored_printer")
 local p = require("plenary.path")
 
@@ -15,13 +16,20 @@ local M = {}
 
 ---@class AdapterRunOpts
 ---@field additional_args? string[]
+---@field bufnr? integer
+---@field cursor_pos? integer[]
 
 ---@class CmdData
----@field type "stdout" | "stderr" | "exit"
+---@field type "stdout" | "stderr" | "exit" | "test_status"
 ---@field raw string
 ---@field output? string
 ---@field decoded any
 ---@field code? number
+---@field status? "running" | "passed" | "failed" | "skipped"
+---@field selector? string
+---@field row? integer
+---@field bufnr? integer
+---@field display_name? string
 
 ---@alias RunType "line" | "file" | "dir" | "all"
 
@@ -33,6 +41,7 @@ local M = {}
 ---@field build_all_run_params fun(bufnr: integer, cursor_pos: integer[], opts: AdapterRunOpts): any
 ---@field run fun(params: any, send: fun(data: CmdData)): number
 ---@field after_run nil|fun(params: any, results: CmdData)
+---@field list_tests nil|fun(bufnr: integer): any[]
 ---@field title fun(params: any): string
 ---@field is_enabled fun(bufnr: number, type: RunType): boolean
 
@@ -350,6 +359,10 @@ function M.run(adapter, params, config, opts)
         end
       end
 
+      if result.type == "test_status" and result.selector and result.status then
+        test_panel.update_test_status(result.bufnr or params.bufnr, result.selector, result.status)
+      end
+
       if result.type == "stdout" or result.type == "stderr" then
         if result.output then
           local lines = vim.split(result.output, "\n")
@@ -411,9 +424,9 @@ end
 --- @param opts AdapterRunOpts
 function M.prepare_and_run(config, type, mode, adapter_name, opts)
   local win_mode = mode == "auto" and M.current_win_mode(config.default_win_mode) or mode --[[@as WinModeWithoutAuto]]
-  local current_buffer = api.nvim_get_current_buf()
+  local current_buffer = opts.bufnr or api.nvim_get_current_buf()
   local win = vim.api.nvim_get_current_win() -- Get the current active window
-  local cursor_pos = vim.api.nvim_win_get_cursor(win) -- Get the cursor position in the window
+  local cursor_pos = opts.cursor_pos or vim.api.nvim_win_get_cursor(win) -- Get the cursor position in the window
 
   local adapter, params, error = get_adapter_and_params(config, type, adapter_name, current_buffer, cursor_pos, opts)
   if error ~= nil then
@@ -421,6 +434,10 @@ function M.prepare_and_run(config, type, mode, adapter_name, opts)
   end
   if adapter == nil or params == nil then
     return notify.warn("Failed to test: no suitable adapter found.")
+  end
+
+  if params.tests then
+    test_panel.track_tests(current_buffer, adapter.name, params.tests)
   end
 
   local buf_name = api.nvim_buf_get_name(current_buffer)
@@ -437,6 +454,61 @@ function M.prepare_and_run(config, type, mode, adapter_name, opts)
       cursor_pos = cursor_pos,
     }
     save_previous_run()
+  end
+
+  M.try_open_win(win_mode)
+  M.run(adapter, params, config, opts)
+end
+
+function M.show_tests(config, adapter_name)
+  local current_buffer = api.nvim_get_current_buf()
+  local adapter = adapter_name == "auto" and get_adapter(config, "line")
+    or get_adapter_by_name(config.adapters, adapter_name)
+
+  if not adapter then
+    return notify.warn("Failed to show tests: no suitable adapter found.")
+  end
+
+  if not adapter.list_tests then
+    return notify.warn("Failed to show tests: adapter '" .. adapter.name .. "' does not support listing tests.")
+  end
+
+  local tests = adapter.list_tests(current_buffer)
+  if not tests or vim.tbl_isempty(tests) then
+    return notify.warn("No tests found in current file.")
+  end
+
+  test_panel.open(current_buffer, adapter.name, tests)
+end
+
+function M.run_selectors(config, adapter_name, selectors, opts)
+  opts = opts or {}
+  local win_mode = "split"
+  local current_buffer = opts.bufnr or api.nvim_get_current_buf()
+
+  local adapter = adapter_name == "auto" and get_adapter(config, "line")
+    or get_adapter_by_name(config.adapters, adapter_name)
+
+  if not adapter then
+    return notify.warn("Failed to test: no suitable adapter found.")
+  end
+
+  if not adapter.build_selectors_run_params then
+    return notify.warn("Failed to test: adapter '" .. adapter.name .. "' does not support selectors run.")
+  end
+
+  local params, error = adapter.build_selectors_run_params(current_buffer, selectors, opts)
+  if error ~= nil then
+    return notify.warn("Failed to test: " .. error .. ".")
+  end
+
+  if params == nil then
+    return notify.warn("Failed to test: no params returned.")
+  end
+
+  if params.tests then
+    test_panel.track_tests(current_buffer, adapter.name, params.tests)
+    test_panel.reset_running_tests(current_buffer, selectors)
   end
 
   M.try_open_win(win_mode)

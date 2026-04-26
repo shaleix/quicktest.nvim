@@ -101,6 +101,21 @@ function M.cancel_current_run()
   module.kill_current_run()
 end
 
+--- @param adapter? Adapter
+function M.show_tests(adapter)
+  adapter = adapter or "auto"
+  return module.show_tests(M.config, adapter)
+end
+
+--- @param adapter? Adapter
+--- @param selectors string[]
+--- @param opts? AdapterRunOpts
+function M.run_selectors(adapter, selectors, opts)
+  adapter = adapter or "auto"
+  opts = opts or {}
+  return module.run_selectors(M.config, adapter, selectors, opts)
+end
+
 -- module.run(require("quicktest.adapters.golang"), {
 --   func_names = { "TestSum" },
 --   sub_func_names = {},
