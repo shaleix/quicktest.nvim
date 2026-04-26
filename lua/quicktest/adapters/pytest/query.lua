@@ -1,4 +1,10 @@
 return [[
+    ; -- Namespaces --
+    ; Matches: `class TestClass`
+    (class_definition
+        name: (identifier) @namespace.name
+    ) @namespace.definition
+
     ; -- Tests --
     ; Matches: `def test_`
     (function_definition

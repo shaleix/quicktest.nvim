@@ -20,8 +20,8 @@ local M = {
 ---@class PytestRunParams
 ---@field bufnr integer
 ---@field file string?
----@field ns_name string
----@field test_name string
+---@field ns_name string?
+---@field test_name string?
 ---@field cwd string
 ---@field bin string
 ---@field opts AdapterRunOpts
@@ -65,6 +65,7 @@ M.build_line_run_params = function(bufnr, cursor_pos, opts)
 
   local params = {
     bufnr = bufnr,
+    ns_name = ts.get_current_test_name(q, bufnr, cursor_pos, "namespace"),
     test_name = ts.get_current_test_name(q, bufnr, cursor_pos, "test"),
     file = file,
     cwd = cwd,
@@ -138,17 +139,24 @@ end
 local function build_args(params)
   local args = {}
 
-  if params.test_name ~= "" and params.test_name ~= nil then
-    vim.list_extend(args, {
-      "-k",
-      params.test_name,
-    })
-  end
-
   if params.file ~= "" and params.file ~= nil then
-    vim.list_extend(args, {
-      params.file,
-    })
+    if params.test_name ~= "" and params.test_name ~= nil then
+      local test_selector = params.file
+
+      if params.ns_name ~= "" and params.ns_name ~= nil then
+        test_selector = string.format("%s::%s::%s", test_selector, params.ns_name, params.test_name)
+      else
+        test_selector = string.format("%s::%s", test_selector, params.test_name)
+      end
+
+      vim.list_extend(args, {
+        test_selector,
+      })
+    else
+      vim.list_extend(args, {
+        params.file,
+      })
+    end
   end
 
   return args
