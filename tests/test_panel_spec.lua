@@ -109,4 +109,21 @@ describe("test panel", function()
       "  ● test_two",
     }, vim.api.nvim_buf_get_lines(panel_bufnr, 0, -1, false))
   end)
+
+  it("matches selector with relative path from pytest output", function()
+    local source_bufnr = vim.api.nvim_create_buf(false, true)
+
+    test_panel.track_tests(source_bufnr, "pytest", {
+      {
+        selector = "/root/project/tests/test_contract.py::test_new_id_format",
+        display_name = "test_new_id_format",
+        row = 1,
+        status = "idle",
+      },
+    })
+
+    test_panel.update_test_status(source_bufnr, "tests/test_contract.py::test_new_id_format", "passed")
+
+    assert.are.same("passed", test_panel.get_tests()[1].status)
+  end)
 end)

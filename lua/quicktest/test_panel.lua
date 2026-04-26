@@ -10,7 +10,9 @@ local state = {
   adapter_name = nil,
   tests = {},
   line_to_test = {},
+  running_selectors = {},
   line_to_namespace = {},
+  notified_finished = false,
 }
 
 local ns = api.nvim_create_namespace("quicktest-test-panel")
@@ -178,6 +180,8 @@ function M.track_tests(bufnr, adapter_name, tests)
   state.source_bufnr = bufnr
   state.adapter_name = adapter_name
   state.tests = {}
+  state.running_selectors = {}
+  state.notified_finished = false
 
   for _, test in ipairs(tests or {}) do
     local copy = vim.deepcopy(test)
@@ -286,15 +290,86 @@ function M.close()
   end
 end
 
+local function check_all_tests_finished()
+  if state.notified_finished then
+    return false
+  end
+
+  if #state.running_selectors == 0 then
+    return false
+  end
+
+  local passed = 0
+  local failed = 0
+  local skipped = 0
+  local running = 0
+
+  for _, test in ipairs(state.tests) do
+    if state.running_selectors[test.selector] then
+      if test.status == "passed" then
+        passed = passed + 1
+      elseif test.status == "failed" then
+        failed = failed + 1
+      elseif test.status == "skipped" then
+        skipped = skipped + 1
+      elseif test.status == "running" then
+        running = running + 1
+      end
+    end
+  end
+
+  if running > 0 then
+    return false
+  end
+
+  local total = passed + failed + skipped
+  if total == 0 then
+    return false
+  end
+
+  state.notified_finished = true
+
+  if failed > 0 then
+    vim.notify(
+      string.format("Tests failed: %d passed, %d failed, %d skipped", passed, failed, skipped),
+      vim.log.levels.ERROR
+    )
+  else
+    vim.notify(
+      string.format("Tests passed: %d passed, %d skipped", passed, skipped),
+      vim.log.levels.INFO
+    )
+  end
+
+  return true
+end
+
 function M.update_test_status(bufnr, selector, status)
   if not bufnr or state.source_bufnr ~= bufnr then
     return
+  end
+
+  if status == "running" then
+    state.running_selectors[selector] = true
   end
 
   for _, test in ipairs(state.tests) do
     if test.selector == selector then
       test.status = status
       render()
+      check_all_tests_finished()
+      return
+    end
+
+    local test_id = test.selector:match("::.*$")
+    local output_id = selector:match("::.*$")
+    if test_id and output_id and test_id == output_id then
+      test.status = status
+      if status == "running" then
+        state.running_selectors[test.selector] = true
+      end
+      render()
+      check_all_tests_finished()
       return
     end
   end
@@ -305,18 +380,32 @@ function M.reset_running_tests(bufnr, selectors)
     return
   end
 
-  local selector_set = {}
-  for _, selector in ipairs(selectors) do
-    selector_set[selector] = true
-  end
+  state.notified_finished = false
+  state.running_selectors = {}
 
   for _, test in ipairs(state.tests) do
-    if selector_set[test.selector] then
-      test.status = "running"
+    for _, selector in ipairs(selectors) do
+      if test.selector == selector then
+        test.status = "running"
+        state.running_selectors[test.selector] = true
+        break
+      end
+
+      local test_id = test.selector:match("::.*$")
+      local sel_id = selector:match("::.*$")
+      if test_id and sel_id and test_id == sel_id then
+        test.status = "running"
+        state.running_selectors[test.selector] = true
+        break
+      end
     end
   end
 
   render()
+end
+
+function M.get_tests()
+  return state.tests
 end
 
 return M

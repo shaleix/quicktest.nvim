@@ -316,7 +316,8 @@ end
 ---@param line string
 ---@return string|nil, string|nil
 local function parse_test_result_line(line)
-  local selector, status = line:match("^(%S+)%s+(PASSED|FAILED|ERROR|SKIPPED|XFAIL|XPASS)%s*")
+  local clean_line = line:gsub("[\27\155][][()#;?%d]*[A-PRZcf-ntqry=><~]", "")
+  local selector, status = clean_line:match("^(%S+)%s+(PASSED|FAILED|ERROR|SKIPPED|XFAIL|XPASS)%s*")
   if not selector or not status then
     return nil, nil
   end
@@ -353,7 +354,7 @@ M.run = function(params, send)
   local running_tests = {}
   if params.selected_test then
     running_tests = { params.selected_test }
-  elseif params.tests and params.file then
+  elseif params.tests then
     running_tests = params.tests
   end
 
