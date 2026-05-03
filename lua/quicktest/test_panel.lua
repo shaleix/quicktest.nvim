@@ -197,21 +197,43 @@ function M.track_tests(bufnr, adapter_name, tests)
   end
 end
 
-local function run_test_under_cursor()
+local function run_test_or_namespace_under_cursor()
   if not state.buf or api.nvim_get_current_buf() ~= state.buf then
     return
   end
 
   local cursor = api.nvim_win_get_cursor(0)
-  local test = state.line_to_test[cursor[1]]
-  if not test then
+  local line = cursor[1]
+
+  local test = state.line_to_test[line]
+  if test then
+    require("quicktest").run_line("auto", state.adapter_name, {
+      bufnr = state.source_bufnr,
+      cursor_pos = { test.row + 1, 0 },
+    })
     return
   end
 
-  require("quicktest").run_line("auto", state.adapter_name, {
-    bufnr = state.source_bufnr,
-    cursor_pos = { test.row + 1, 0 },
-  })
+  local namespace = state.line_to_namespace[line]
+  if namespace then
+    local tests_in_namespace = {}
+    for _, t in ipairs(state.tests) do
+      if t.ns_name == namespace then
+        table.insert(tests_in_namespace, t)
+      end
+    end
+
+    if #tests_in_namespace > 0 then
+      local selectors = {}
+      for _, t in ipairs(tests_in_namespace) do
+        table.insert(selectors, t.selector)
+      end
+
+      require("quicktest").run_selectors(state.adapter_name, selectors, {
+        bufnr = state.source_bufnr,
+      })
+    end
+  end
 end
 
 local function run_namespace_under_cursor()
@@ -247,8 +269,8 @@ local function run_namespace_under_cursor()
 end
 
 local function ensure_keymaps(buf)
-  vim.keymap.set("n", "<CR>", run_test_under_cursor, { buffer = buf, silent = true, nowait = true })
-  vim.keymap.set("n", "r", run_test_under_cursor, { buffer = buf, silent = true, nowait = true })
+  vim.keymap.set("n", "<CR>", run_test_or_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
+  vim.keymap.set("n", "r", run_test_or_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
   vim.keymap.set("n", "R", run_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
   vim.keymap.set("n", "q", function()
     M.close()

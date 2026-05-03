@@ -507,7 +507,16 @@ function M.run_selectors(config, adapter_name, selectors, opts)
     return notify.warn("Failed to test: no params returned.")
   end
 
-  if params.tests then
+  if adapter.list_tests then
+    -- Get ALL tests from the file, not just the selected ones
+    -- This ensures all namespaces remain visible when running a specific namespace
+    local all_tests = adapter.list_tests(current_buffer)
+    if all_tests then
+      test_panel.track_tests(current_buffer, adapter.name, all_tests)
+      test_panel.reset_running_tests(current_buffer, selectors)
+    end
+  elseif params.tests then
+    -- Fallback: if adapter doesn't have list_tests, use params.tests
     test_panel.track_tests(current_buffer, adapter.name, params.tests)
     test_panel.reset_running_tests(current_buffer, selectors)
   end
