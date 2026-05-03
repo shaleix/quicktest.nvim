@@ -24,6 +24,7 @@ local status_style = {
   passed = { hl = "DiagnosticOk" },
   failed = { hl = "DiagnosticError" },
   skipped = { hl = "DiagnosticWarn" },
+  error = { hl = "DiagnosticError" },
 }
 
 local function get_style(status)
@@ -302,6 +303,7 @@ local function check_all_tests_finished()
   local passed = 0
   local failed = 0
   local skipped = 0
+  local error_count = 0
   local running = 0
 
   for _, test in ipairs(state.tests) do
@@ -312,6 +314,8 @@ local function check_all_tests_finished()
         failed = failed + 1
       elseif test.status == "skipped" then
         skipped = skipped + 1
+      elseif test.status == "error" then
+        error_count = error_count + 1
       elseif test.status == "running" then
         running = running + 1
       end
@@ -322,23 +326,20 @@ local function check_all_tests_finished()
     return false
   end
 
-  local total = passed + failed + skipped
+  local total = passed + failed + skipped + error_count
   if total == 0 then
     return false
   end
 
   state.notified_finished = true
 
-  if failed > 0 then
+  if failed > 0 or error_count > 0 then
     vim.notify(
-      string.format("Tests failed: %d passed, %d failed, %d skipped", passed, failed, skipped),
+      string.format("Tests failed: %d passed, %d failed, %d error, %d skipped", passed, failed, error_count, skipped),
       vim.log.levels.ERROR
     )
   else
-    vim.notify(
-      string.format("Tests passed: %d passed, %d skipped", passed, skipped),
-      vim.log.levels.INFO
-    )
+    vim.notify(string.format("Tests passed: %d passed, %d skipped", passed, skipped), vim.log.levels.INFO)
   end
 
   return true

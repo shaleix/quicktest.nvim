@@ -317,16 +317,34 @@ end
 ---@return string|nil, string|nil
 local function parse_test_result_line(line)
   local clean_line = line:gsub("[\27\155][][()#;?%d]*[A-PRZcf-ntqry=><~]", "")
-  local selector, status = clean_line:match("^(%S+)%s+(PASSED|FAILED|ERROR|SKIPPED|XFAIL|XPASS)%s*")
-  if not selector or not status then
+
+  -- Match summary lines like "=== 1 error in 0.10s ==="
+  if clean_line:match("^%s*==+.*error.*==+%s*$") then
+    return "__summary__", "error"
+  end
+
+  -- Lua patterns do not support alternation (|), check each status separately
+  local selector = clean_line:match("^(%S+)%s+PASSED")
+    or clean_line:match("^(%S+)%s+FAILED")
+    or clean_line:match("^(%S+)%s+ERROR")
+    or clean_line:match("^(%S+)%s+SKIPPED")
+    or clean_line:match("^(%S+)%s+XFAIL")
+    or clean_line:match("^(%S+)%s+XPASS")
+
+  if not selector then
     return nil, nil
   end
 
-  if status == "PASSED" or status == "XFAIL" then
+  local status_raw = clean_line:match("^" .. selector .. "%s+(%S+)")
+  if not status_raw then
+    return nil, nil
+  end
+
+  if status_raw == "PASSED" or status_raw == "XFAIL" then
     return selector, "passed"
   end
 
-  if status == "FAILED" or status == "ERROR" or status == "XPASS" then
+  if status_raw == "FAILED" or status_raw == "ERROR" or status_raw == "XPASS" then
     return selector, "failed"
   end
 

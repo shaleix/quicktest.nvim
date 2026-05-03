@@ -360,6 +360,7 @@ function M.run(adapter, params, config, opts)
       end
 
       if result.type == "test_status" and result.selector and result.status then
+        u.scheduler()
         test_panel.update_test_status(result.bufnr or params.bufnr, result.selector, result.status)
       end
 

@@ -3,4 +3,7 @@ def test_fail():
 
 
 def test_ok():
-    assert 1 == 1
+    import time
+    time.sleep(2)
+    assert 1 == 2
+

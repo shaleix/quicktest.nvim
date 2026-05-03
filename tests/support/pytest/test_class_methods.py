@@ -8,4 +8,4 @@ class TestMath:
 
 class TestString:
     def test_add(self):
-assert "a" + "b" == "ab"
+        assert "a" + "b" == "ab"
