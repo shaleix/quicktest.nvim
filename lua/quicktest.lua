@@ -12,11 +12,11 @@ local config = {
     border = {
       style = "rounded",
     },
-    position = "50%",
-    size = {
-      width = "80%",
-      height = "60%",
-    },
+    position = "40%",
+  },
+  test_panel_options = {
+    width = "60%",
+    height = "60%",
   },
 }
 

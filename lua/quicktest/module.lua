@@ -49,6 +49,8 @@ local M = {}
 ---@field adapters QuicktestAdapter[]
 ---@field default_win_mode WinModeWithoutAuto
 ---@field use_builtin_colorizer boolean
+---@field popup_options table
+---@field test_panel_options table
 
 ---@alias JobStatus "running" | "finished" | "canceled"
 

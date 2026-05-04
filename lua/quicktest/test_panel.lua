@@ -71,7 +71,6 @@ local function build_render_entries()
   local entries = {}
   local groups = {}
   local group_order = {}
-  local group_tests = {}
 
   for _, test in ipairs(state.tests) do
     local namespace, test_name = test.display_name:match("^([^:]+)::(.+)$")
@@ -281,24 +280,24 @@ function M.open(source_bufnr, adapter_name, tests)
   M.track_tests(source_bufnr, adapter_name, tests)
 
   local buf = ensure_buf()
-  local entries = build_render_entries()
   ensure_keymaps(buf)
 
   if not state.popup then
+    local panel_opts = require("quicktest").config.test_panel_options
+
     local popup_options = vim.tbl_deep_extend("force", {
       enter = true,
       focusable = true,
+      relative = "editor",
       bufnr = buf,
       border = { style = "rounded", text = { top = " Quicktest Cases ", top_align = "center" } },
-      position = "50%",
-      size = {
-        width = 60,
-        height = math.max(8, math.min(#entries + 4, 20)),
-      },
     }, require("quicktest").config.popup_options or {})
 
-    popup_options.bufnr = buf
-    popup_options.size.height = math.max(8, math.min(#entries + 4, 20))
+    popup_options.size = {
+      width = panel_opts.width,
+      height = panel_opts.height,
+    }
+
     state.popup = Popup(popup_options)
     state.popup:mount()
   end

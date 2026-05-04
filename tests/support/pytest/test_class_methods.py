@@ -6,8 +6,8 @@ class TestMath:
         import time
         time.sleep(1)
         assert 1 + 1 == 2
-
     def test_add2(self):
+
         import time
         time.sleep(1)
         assert 1 + 1 == 2
