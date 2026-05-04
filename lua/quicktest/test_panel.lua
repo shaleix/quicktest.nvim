@@ -267,8 +267,47 @@ local function run_namespace_under_cursor()
   })
 end
 
+local function find_win_by_bufnr(bufnr)
+  for _, win in ipairs(api.nvim_list_wins()) do
+    if api.nvim_win_get_buf(win) == bufnr then
+      return win
+    end
+  end
+  return nil
+end
+
+local function jump_to_test_file()
+  if not state.buf or api.nvim_get_current_buf() ~= state.buf then
+    return
+  end
+
+  local cursor = api.nvim_win_get_cursor(0)
+  local line = cursor[1]
+
+  local test = state.line_to_test[line]
+  if not test then
+    return
+  end
+
+  if not state.source_bufnr or not api.nvim_buf_is_valid(state.source_bufnr) then
+    return
+  end
+
+  local source_win = find_win_by_bufnr(state.source_bufnr)
+
+  M.close()
+
+  if source_win then
+    api.nvim_set_current_win(source_win)
+    api.nvim_win_set_cursor(source_win, { test.row + 1, 0 })
+  else
+    api.nvim_set_current_buf(state.source_bufnr)
+    api.nvim_win_set_cursor(0, { test.row + 1, 0 })
+  end
+end
+
 local function ensure_keymaps(buf)
-  vim.keymap.set("n", "<CR>", run_test_or_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
+  vim.keymap.set("n", "<CR>", jump_to_test_file, { buffer = buf, silent = true, nowait = true })
   vim.keymap.set("n", "r", run_test_or_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
   vim.keymap.set("n", "R", run_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
   vim.keymap.set("n", "q", function()
