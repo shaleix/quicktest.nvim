@@ -235,30 +235,17 @@ local function run_test_or_namespace_under_cursor()
   end
 end
 
-local function run_namespace_under_cursor()
+local function run_all_tests()
   if not state.buf or api.nvim_get_current_buf() ~= state.buf then
     return
   end
 
-  local cursor = api.nvim_win_get_cursor(0)
-  local namespace = state.line_to_namespace[cursor[1]]
-  if not namespace then
-    return
-  end
-
-  local tests_in_namespace = {}
-  for _, test in ipairs(state.tests) do
-    if test.ns_name == namespace then
-      table.insert(tests_in_namespace, test)
-    end
-  end
-
-  if #tests_in_namespace == 0 then
+  if #state.tests == 0 then
     return
   end
 
   local selectors = {}
-  for _, test in ipairs(tests_in_namespace) do
+  for _, test in ipairs(state.tests) do
     table.insert(selectors, test.selector)
   end
 
@@ -309,7 +296,7 @@ end
 local function ensure_keymaps(buf)
   vim.keymap.set("n", "<CR>", jump_to_test_file, { buffer = buf, silent = true, nowait = true })
   vim.keymap.set("n", "r", run_test_or_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
-  vim.keymap.set("n", "R", run_namespace_under_cursor, { buffer = buf, silent = true, nowait = true })
+  vim.keymap.set("n", "R", run_all_tests, { buffer = buf, silent = true, nowait = true })
   vim.keymap.set("n", "q", function()
     M.close()
   end, { buffer = buf, silent = true, nowait = true })
